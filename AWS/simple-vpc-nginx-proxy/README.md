@@ -25,6 +25,12 @@ This is a simple hands-on AWS project you can build from the AWS Console. The go
 | Private server | App EC2 | Private Subnet 1 | Runs the HTML/app page with no public IP |
 | Internet access | Internet Gateway | Attached to VPC | Lets public resources reach the internet |
 
+Important placement note:
+
+- The **Public EC2 / NGINX proxy** must be in **Public Subnet 1** because it needs a public IPv4 address and a route to the Internet Gateway.
+- The **Private EC2 / app server** must be in **Private Subnet 1** because it should not be reachable directly from the internet.
+- The ALB lives in both public subnets and forwards traffic to the public EC2 proxy.
+
 ## Architecture Summary
 
 The Application Load Balancer is the public entry point for end users. Users open the ALB DNS name in a browser, and the ALB forwards HTTP traffic to the public EC2 instance running NGINX.
