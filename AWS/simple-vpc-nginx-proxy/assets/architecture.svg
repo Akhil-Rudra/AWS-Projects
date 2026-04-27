@@ -51,13 +51,13 @@
   <text x="600" y="361" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#4c1d95">Application Load Balancer</text>
   <text x="600" y="382" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">Internet-facing, public subnets</text>
 
-  <rect x="320" y="522" width="205" height="56" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="2" filter="url(#shadow)" />
-  <text x="422" y="545" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Public EC2</text>
-  <text x="422" y="566" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">NGINX Reverse Proxy</text>
+  <rect x="300" y="362" width="130" height="48" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="2" filter="url(#shadow)" />
+  <text x="365" y="383" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="700" fill="#0f172a">Public EC2</text>
+  <text x="365" y="401" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#475569">NGINX Proxy</text>
 
-  <rect x="720" y="522" width="205" height="56" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="2" filter="url(#shadow)" />
-  <text x="822" y="545" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Private EC2</text>
-  <text x="822" y="566" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">Python HTTP App</text>
+  <rect x="315" y="505" width="205" height="50" rx="8" fill="#fff7ed" stroke="#f97316" stroke-width="2" filter="url(#shadow)" />
+  <text x="417" y="527" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#0f172a">Private EC2</text>
+  <text x="417" y="546" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#475569">Python HTTP App</text>
 
   <text x="825" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Private Subnet 2 reserved for HA</text>
 
@@ -70,14 +70,14 @@
   <text x="300" y="145" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">HTTP :80</text>
 
   <path d="M560 144 C560 215, 585 285, 600 338" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)" />
-  <path d="M560 396 C520 445, 465 485, 430 522" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)" />
-  <text x="494" y="455" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Target group :80</text>
+  <path d="M448 378 C440 380, 436 382, 430 386" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)" />
+  <text x="386" y="348" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Target group :80</text>
 
-  <path d="M525 550 C600 550, 645 550, 720 550" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)" />
-  <text x="622" y="532" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Private HTTP :80</text>
+  <path d="M365 410 C380 445, 400 475, 417 505" fill="none" stroke="#2563eb" stroke-width="3" marker-end="url(#arrow-blue)" />
+  <text x="445" y="465" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Private HTTP :80</text>
 
-  <path d="M720 570 C645 604, 535 604, 525 570" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrow-blue)" />
-  <text x="625" y="596" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Response</text>
+  <path d="M387 505 C340 470, 335 440, 360 410" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrow-blue)" />
+  <text x="335" y="462" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#1d4ed8">Response</text>
 
   <rect x="290" y="680" width="520" height="26" rx="6" fill="#fff1f2" stroke="#e11d48" stroke-width="1.5" />
   <text x="550" y="698" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#9f1239">Security groups: ALB -> Proxy on 80, Proxy -> Private App on 80</text>
