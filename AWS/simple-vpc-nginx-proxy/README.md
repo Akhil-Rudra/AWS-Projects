@@ -172,6 +172,14 @@ In **Network settings**, choose **Select existing security group** and select `p
 
 After launch, copy the private IP address. You need it for SSH testing and for the public proxy configuration.
 
+You cannot SSH directly from your laptop to this private EC2 instance because it has no public IPv4 address and no internet route. Use the public EC2 instance as a bastion host:
+
+```text
+Your laptop -> Public EC2 / bastion -> Private EC2
+```
+
+The private app security group must allow SSH `22` from `public-proxy-sg`. This keeps SSH access private and only allows the public proxy server to reach the private server.
+
 After connecting to the private EC2 instance through the public proxy server, switch to root and run:
 
 ```bash
@@ -331,7 +339,7 @@ After testing, remove direct HTTP access from your IP and keep HTTP `80` open on
 
 ## Step 9: Optional SSH Test Through the Public Server
 
-This test proves that the private app server is reachable from the public proxy server, but not directly from your laptop.
+This test proves that the private app server is reachable from the public proxy server, but not directly from your laptop. In this project, the public EC2 instance also acts as a bastion host.
 
 On your local machine, make the key file private:
 
@@ -339,10 +347,17 @@ On your local machine, make the key file private:
 chmod 400 simple-vpc-key.pem
 ```
 
-Connect to the public proxy server:
+Add the key to your local SSH agent and connect to the public proxy server with agent forwarding:
 
 ```bash
-ssh -i simple-vpc-key.pem ec2-user@PUBLIC_PROXY_PUBLIC_IP
+ssh-add simple-vpc-key.pem
+ssh -A -i simple-vpc-key.pem ec2-user@PUBLIC_PROXY_PUBLIC_IP
+```
+
+From the public proxy server, SSH into the private app server:
+
+```bash
+ssh ec2-user@PRIVATE_APP_PRIVATE_IP
 ```
 
 From the public proxy server, test the private app over HTTP:
@@ -352,14 +367,6 @@ curl http://PRIVATE_APP_PRIVATE_IP
 ```
 
 You should see the HTML from the private app server.
-
-To SSH from the public proxy server into the private app server, the public proxy server needs access to the private key. For this learning project, the easiest method is SSH agent forwarding from your local machine:
-
-```bash
-ssh-add simple-vpc-key.pem
-ssh -A ec2-user@PUBLIC_PROXY_PUBLIC_IP
-ssh ec2-user@PRIVATE_APP_PRIVATE_IP
-```
 
 If `ssh-add` says the agent is not running, you can skip the SSH-to-private test and use the `curl` test above. The `curl` test is enough to prove the public server can reach the private server.
 
