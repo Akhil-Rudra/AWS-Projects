@@ -154,9 +154,7 @@ When adding the HTTP rule, choose **Custom** as the source type and select `publ
 
 ## Step 6: Launch the Private App Server
 
-Use a key pair for the private app server so you can practice connecting to it from the public proxy server.
-
-Create an EC2 instance:
+Launch the private EC2 instance first. This server runs the actual app page, but it does not have a public IP address.
 
 | Setting | Value |
 | --- | --- |
@@ -170,7 +168,7 @@ Create an EC2 instance:
 
 In **Network settings**, choose **Select existing security group** and select `private-app-sg`. Do not choose **Create security group** here.
 
-After launch, copy the private IP address. You need it for SSH testing and for the public proxy configuration.
+After launch, copy the private IP address. You need it later for SSH testing and for the NGINX proxy configuration.
 
 You cannot SSH directly from your laptop to this private EC2 instance because it has no public IPv4 address and no internet route. Use the public EC2 instance as a bastion host:
 
@@ -180,89 +178,13 @@ Your laptop -> Public EC2 / bastion -> Private EC2
 
 The private app security group must allow SSH `22` from `public-proxy-sg`. This keeps SSH access private and only allows the public proxy server to reach the private server.
 
-After connecting to the private EC2 instance through the public proxy server, switch to root and run:
-
-```bash
-sudo -i
-```
-
-Then run:
-
-```bash
-#!/bin/bash
-mkdir -p /opt/private-app
-
-cat > /opt/private-app/index.html <<'HTML'
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Private App Server</title>
-    <style>
-      body {
-        margin: 0;
-        min-height: 100vh;
-        display: grid;
-        place-items: center;
-        font-family: Arial, sans-serif;
-        background: #f4f7fb;
-        color: #14213d;
-      }
-      main {
-        max-width: 720px;
-        padding: 40px;
-        border: 1px solid #d8e0ea;
-        border-radius: 8px;
-        background: white;
-      }
-      h1 {
-        color: #0f766e;
-      }
-    </style>
-  </head>
-  <body>
-    <main>
-      <h1>Hello from the private subnet</h1>
-      <p>This page is served by a private EC2 instance and reached through the public NGINX proxy.</p>
-      <p>The private server has no public IP address.</p>
-      <p>This version works well for a simple KodeKloud AWS Playground project.</p>
-    </main>
-  </body>
-</html>
-HTML
-
-cat > /etc/systemd/system/private-app.service <<'SERVICE'
-[Unit]
-Description=Private app HTTP server
-After=network.target
-
-[Service]
-Type=simple
-WorkingDirectory=/opt/private-app
-ExecStart=/usr/bin/python3 -m http.server 80
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-
-systemctl daemon-reload
-systemctl enable private-app
-systemctl start private-app
-```
-
-Note: the private server should not have a public IPv4 address. If it does, it was placed in the wrong subnet or auto-assign public IP was enabled.
-
-This setup avoids package installs on the private server and uses Python's built-in HTTP server.
-
-Keep the `.pem` key file on your local machine. You will use it to SSH into the public proxy server first, then connect from there to the private app server.
+Do not install NGINX on the private EC2. The private EC2 only needs Python's built-in HTTP server.
 
 ## Step 7: Launch the Public Proxy Server
 
-Use the same key pair that you selected for the private app server.
+Launch the public EC2 instance next. This server has a public IP address, acts as the SSH bastion host, and runs NGINX as a reverse proxy.
 
-Create another EC2 instance:
+Use the same key pair that you selected for the private app server.
 
 | Setting | Value |
 | --- | --- |
@@ -276,22 +198,122 @@ Create another EC2 instance:
 
 In **Network settings**, choose **Select existing security group** and select `public-proxy-sg`. Do not create a new launch-wizard security group.
 
-After connecting to the public proxy server, switch to root and install/configure NGINX:
+After launch, copy the public IPv4 address of this public EC2 instance.
+
+## Step 8: Connect to the Private Server Through the Public Server
+
+On your local machine, make the key file private:
 
 ```bash
-sudo -i
+chmod 400 simple-vpc-key.pem
 ```
 
-Replace `PRIVATE_SERVER_IP_HERE` with the private IP of the private EC2 instance.
+Add the key to your local SSH agent:
 
 ```bash
-#!/bin/bash
-dnf update -y
-dnf install -y nginx
+ssh-add simple-vpc-key.pem
+```
 
-PRIVATE_APP_IP="PRIVATE_SERVER_IP_HERE"
+Connect to the public EC2 with SSH agent forwarding:
 
-cat > /etc/nginx/nginx.conf <<NGINX
+```bash
+ssh -A -i simple-vpc-key.pem ec2-user@PUBLIC_PROXY_PUBLIC_IP
+```
+
+From the public EC2, connect to the private EC2:
+
+```bash
+ssh ec2-user@PRIVATE_APP_PRIVATE_IP
+```
+
+This works because the public EC2 can reach the private EC2 inside the VPC, while your private key stays on your local machine.
+
+## Step 9: Configure the Private App Server
+
+Run these commands on the **private EC2**.
+
+Create a simple HTML app:
+
+```bash
+sudo mkdir -p /opt/private-app
+
+sudo tee /opt/private-app/index.html > /dev/null <<'HTML'
+<!doctype html>
+<html>
+<head>
+  <title>Private App Server</title>
+</head>
+<body>
+  <h1>Hello from the private subnet</h1>
+  <p>This page is served by the private EC2 instance.</p>
+  <p>The private server has no public IP address.</p>
+</body>
+</html>
+HTML
+```
+
+Create a systemd service for the Python web server:
+
+```bash
+sudo tee /etc/systemd/system/private-app.service > /dev/null <<'SERVICE'
+[Unit]
+Description=Private app HTTP server
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/private-app
+ExecStart=/usr/bin/python3 -m http.server 80
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+SERVICE
+```
+
+Start the private app:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable private-app
+sudo systemctl start private-app
+sudo systemctl status private-app
+```
+
+Test it from the private EC2:
+
+```bash
+curl http://localhost
+```
+
+You should see the HTML page.
+
+## Step 10: Configure NGINX on the Public Proxy Server
+
+Exit back to the public EC2:
+
+```bash
+exit
+```
+
+Run these commands on the **public EC2**.
+
+Install and start NGINX:
+
+```bash
+sudo dnf install -y nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+Replace the main NGINX config so the public EC2 becomes a reverse proxy.
+
+Set `PRIVATE_APP_IP` to your private EC2 private IP address.
+
+```bash
+PRIVATE_APP_IP="PRIVATE_APP_PRIVATE_IP"
+
+sudo tee /etc/nginx/nginx.conf > /dev/null <<NGINX
 user nginx;
 worker_processes auto;
 error_log /var/log/nginx/error.log notice;
@@ -302,13 +324,7 @@ events {
 }
 
 http {
-    log_format main '\$remote_addr - \$remote_user [\$time_local] "\$request" '
-                    '\$status \$body_bytes_sent "\$http_referer" '
-                    '"\$http_user_agent" "\$http_x_forwarded_for"';
-
-    access_log /var/log/nginx/access.log main;
-    sendfile on;
-    keepalive_timeout 65;
+    access_log /var/log/nginx/access.log;
 
     server {
         listen 80;
@@ -324,53 +340,33 @@ http {
     }
 }
 NGINX
-
-systemctl enable nginx
-systemctl start nginx
 ```
 
-Note: if the private app server is replaced later, its private IP can change. In that case, update the proxy configuration with the new private IP.
-
-## Step 8: Test the Proxy
-
-Before creating the load balancer, you can test the proxy by temporarily allowing HTTP `80` from your IP in `public-proxy-sg`, then opening the public EC2 public IPv4 address in your browser.
-
-After testing, remove direct HTTP access from your IP and keep HTTP `80` open only from `alb-sg`.
-
-## Step 9: Optional SSH Test Through the Public Server
-
-This test proves that the private app server is reachable from the public proxy server, but not directly from your laptop. In this project, the public EC2 instance also acts as a bastion host.
-
-On your local machine, make the key file private:
+Example:
 
 ```bash
-chmod 400 simple-vpc-key.pem
+PRIVATE_APP_IP="10.0.11.227"
 ```
 
-Add the key to your local SSH agent and connect to the public proxy server with agent forwarding:
+Test and restart NGINX:
 
 ```bash
-ssh-add simple-vpc-key.pem
-ssh -A -i simple-vpc-key.pem ec2-user@PUBLIC_PROXY_PUBLIC_IP
+sudo nginx -t
+sudo systemctl restart nginx
 ```
 
-From the public proxy server, SSH into the private app server:
-
-```bash
-ssh ec2-user@PRIVATE_APP_PRIVATE_IP
-```
-
-From the public proxy server, test the private app over HTTP:
+Test from the public EC2:
 
 ```bash
 curl http://PRIVATE_APP_PRIVATE_IP
+curl http://localhost
 ```
 
-You should see the HTML from the private app server.
+Both commands should return the private app HTML page.
 
-If `ssh-add` says the agent is not running, you can skip the SSH-to-private test and use the `curl` test above. The `curl` test is enough to prove the public server can reach the private server.
+If `curl http://localhost` returns the NGINX welcome page, NGINX is still using its default config. If it returns `502 Bad Gateway`, the private app service is not running or port `80` is blocked between the public and private security groups.
 
-## Step 10: Create the Application Load Balancer
+## Step 11: Create the Target Group and Application Load Balancer
 
 Create a target group:
 
@@ -385,12 +381,14 @@ Create a target group:
 
 Do not choose **Application Load Balancer** as the target type here. That option is for chaining load balancers together. For this project, the ALB sends traffic to the public EC2 instance running NGINX, so the target type must be **Instances**.
 
-Register the `simple-vpc-public-proxy` EC2 instance as the target:
+Register only the `simple-vpc-public-proxy` EC2 instance as the target:
 
 1. Select `simple-vpc-public-proxy`.
 2. Keep the port as `80`.
 3. Click **Include as pending below**.
 4. Click **Register pending targets**.
+
+Do not register the private EC2 instance in this target group. The target group should send traffic to the public NGINX proxy, and NGINX forwards the request to the private app.
 
 Create an Application Load Balancer:
 
@@ -415,7 +413,7 @@ If the target is unhealthy, check these first:
 4. The public proxy subnet route table has `0.0.0.0/0` pointing to the Internet Gateway.
 5. The target group health check path is `/`.
 
-## Step 11: Test the Application
+## Step 12: Test the Application
 
 1. Copy the ALB DNS name.
 2. Open it in your browser using `http://ALB_DNS_NAME`.
