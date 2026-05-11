@@ -5,3 +5,4 @@ This repository contains hands-on AWS projects built from the AWS Console.
 ## Projects
 
 - [Simple VPC NGINX Proxy to Private App](AWS/simple-vpc-nginx-proxy/README.md)
+- [Path-Based Routing with Application Load Balancer](AWS/path-based-routing-alb/README.md)
